@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Pro Maliyet Hesaplayıcı v3.1</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
+        h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #1a73e8; padding-bottom: 10px; }
+        .row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+        label { font-size: 0.85em; font-weight: 600; margin-bottom: 5px; color: #444; }
+        input, select { padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; outline: none; transition: 0.3s; }
+        input:focus { border-color: #1a73e8; }
+        
+        /* Amortisman Alanı */
+        .amort-section { background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; margin: 15px 0; }
+        .toggle-group { display: flex; gap: 5px; margin-top: 10px; }
+        .switch-btn { flex: 1; cursor: pointer; padding: 8px; border-radius: 6px; border: 1px solid #1a73e8; background: white; color: #1a73e8; font-size: 0.8em; font-weight: bold; }
+        .switch-btn.active { background: #1a73e8; color: white; }
+        #suggestedAmort { font-size: 0.85em; color: #d93025; margin-top: 8px; font-weight: 600; font-style: italic; }
+
+        .design-box { background: #fff4e5; padding: 15px; border-radius: 10px; margin-bottom: 15px; display: none; border: 1px solid #ffe3bc; }
+        
+        .btn-calc { background: #27ae60; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 1.1em; font-weight: bold; transition: 0.3s; }
+        .btn-calc:hover { background: #219150; }
+        .btn-reset { background: none; color: #888; border: none; cursor: pointer; width: 100%; margin-top: 10px; text-decoration: underline; }
+        
+        .results { margin-top: 25px; border-top: 2px dashed #ddd; padding-top: 20px; }
+        .res-line { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.1em; align-items: center; }
+        .total-box { background: #202124; color: white; padding: 20px; border-radius: 12px; margin-top: 15px; text-align: center; }
+        .sale-price { font-size: 1.8em; color: #42ffaf; font-weight: bold; display: block; margin-top: 5px; }
+        
+        .icon-svg { width: 18px; height: 18px; vertical-align: middle; margin-right: 6px; fill: #444; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>3D Maliyet & Amortisman</h2>
+    
+    <div class="row">
+        <div class="form-group">
+            <label>Marka</label>
+            <select id="brand" onchange="updateModels()"><option value="">Seçiniz</option></select>
+        </div>
+        <div class="form-group">
+            <label>Model</label>
+            <select id="model" onchange="suggestAmort()"><option value="">Önce Marka Seçin</option></select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="form-group"><label>Elektrik kWh (TL)</label><input type="number" id="elecKwh" oninput="suggestAmort()"></div>
+        <div class="form-group"><label>Baskı Süresi (Saat)</label><input type="number" id="hours" oninput="suggestAmort()"></div>
+    </div>
+
+    <div class="row">
+        <div class="form-group">
+            <label>
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm1-13h-2v4H7v2h4v4h2v-4h4v-2h-4V7z"/></svg>
+                Filament (Gram)
+            </label>
+            <input type="number" id="grams">
+        </div>
+        <div class="form-group"><label>Filament KG Fiyatı (TL)</label><input type="number" id="kgPrice"></div>
+    </div>
+
+    <div class="amort-section">
+        <label>Yıpranma Payı (Bakım/Amortisman)</label>
+        <div id="suggestedAmort">Öneri: Bekleniyor...</div>
+        <div class="toggle-group">
+            <button class="switch-btn active" id="typePerc" onclick="setAmortType('perc')">% Oran</button>
+            <button class="switch-btn" id="typeTl" onclick="setAmortType('tl')">Sabit TL</button>
+        </div>
+        <input type="number" id="amortValue" style="margin-top:10px; width:100%; box-sizing: border-box;" placeholder="Değer giriniz">
+    </div>
+
+    <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px; margin-bottom: 15px;">
+        <input type="checkbox" id="hasDesign" onchange="toggleDesign()">
+        <label style="margin:0; cursor:pointer;">Özel Tasarım Ücreti Ekle</label>
+    </div>
+    
+    <div id="designInput" class="design-box">
+        <label>Tasarım Bedeli (TL)</label>
+        <input type="number" id="designPrice" placeholder="Örn: 500" style="width:100%; box-sizing: border-box;">
+    </div>
+
+    <div class="form-group" style="margin-bottom: 15px;">
+        <label>Kâr Oranı (%)</label>
+        <input type="number" id="profit" placeholder="Kâr yüzdenizi girin (Örn: 100)">
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">HESAPLA</button>
+    <button class="btn-reset" onclick="resetInputs()">Verileri Sıfırla</button>
+
+    <div class="results" id="results" style="display:none;">
+        <div class="res-line"><span>⚡ Elektrik Maliyeti:</span> <b id="outElec">0</b></div>
+        <div class="res-line"><span>🧵 Filament Maliyeti:</span> <b id="outFil">0</b></div>
+        <div class="res-line"><span>🛠️ Yıpranma Payı:</span> <b id="outAmort">0</b></div>
+        <div id="resDesignLine" class="res-line" style="display:none;"><span>🎨 Tasarım Bedeli:</span> <b id="outDesign">0</b></div>
+        <div class="res-line" style="border-top:1px solid #eee; padding-top:10px; margin-top:5px;"><span>📦 Toplam Net Maliyet:</span> <b id="outNet">0</b></div>
+        <div class="total-box">
+            <strong>TAVSİYE EDİLEN SATIŞ FİYATI</strong>
+            <span class="sale-price" id="outSale">0</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const printerData = {
+        "Bambu Lab": { "X1-Carbon": 350, "P1S": 320, "A1": 180, "A1 Mini": 130 },
+        "Creality": { "K1 Max": 400, "K1C": 350, "Ender 3 V3": 250, "Ender 3 V2": 150 },
+        "Prusa": { "MK4": 150, "MK3S+": 120, "Mini+": 90 },
+        "Anycubic": { "Kobra 2 Pro": 220, "Photon Mono M5s": 80 },
+        "Elegoo": { "Neptune 4 Pro": 250, "Saturn 3": 120 }
+    };
+
+    let amortType = 'perc';
+
+    window.onload = () => {
+        const bSel = document.getElementById("brand");
+        Object.keys(printerData).forEach(b => bSel.add(new Option(b, b)));
+    };
+
+    function updateModels() {
+        const brand = document.getElementById("brand").value;
+        const mSel = document.getElementById("model");
+        mSel.innerHTML = '<option value="">Model Seçiniz</option>';
+        if(brand) Object.keys(printerData[brand]).forEach(m => mSel.add(new Option(m, printerData[brand][m])));
+        suggestAmort();
+    }
+
+    function suggestAmort() {
+        const hours = parseFloat(document.getElementById("hours").value) || 0;
+        const modelWatt = document.getElementById("model").value;
+        const info = document.getElementById("suggestedAmort");
+        if(hours > 0 && modelWatt) {
+            let hourlyRate = modelWatt > 250 ? 15 : 8; 
+            let suggestedTL = hours * hourlyRate;
+            info.innerText = `Öneri: %15 veya ${suggestedTL.toFixed(0)} TL`;
+        } else { info.innerText = "Öneri: Bekleniyor..."; }
+    }
+
+    function setAmortType(type) {
+        amortType = type;
+        document.getElementById('typePerc').classList.toggle('active', type === 'perc');
+        document.getElementById('typeTl').classList.toggle('active', type === 'tl');
+    }
+
+    function toggleDesign() {
+        document.getElementById('designInput').style.display = document.getElementById('hasDesign').checked ? 'block' : 'none';
+    }
+
+    function calculate() {
+        const watt = parseFloat(document.getElementById("model").value);
+        const hours = parseFloat(document.getElementById("hours").value) || 0;
+        const elecPrice = parseFloat(document.getElementById("elecKwh").value) || 0;
+        const grams = parseFloat(document.getElementById("grams").value) || 0;
+        const kgPrice = parseFloat(document.getElementById("kgPrice").value) || 0;
+        const amortVal = parseFloat(document.getElementById("amortValue").value) || 0;
+        const profit = parseFloat(document.getElementById("profit").value) || 0;
+        const designPrice = parseFloat(document.getElementById("designPrice").value) || 0;
+
+        if(!watt) { alert("Lütfen yazıcı seçin!"); return; }
+
+        const costElec = (watt / 1000) * hours * elecPrice;
+        const costFil = (grams / 1000) * kgPrice;
+        let costAmort = (amortType === 'perc') ? (costElec + costFil) * (amortVal / 100) : amortVal;
+        const costDesign = document.getElementById('hasDesign').checked ? designPrice : 0;
+
+        const netTotal = costElec + costFil + costAmort + costDesign;
+        const salePrice = netTotal + (netTotal * (profit / 100));
+
+        document.getElementById("outElec").innerText = costElec.toFixed(2) + " TL";
+        document.getElementById("outFil").innerText = costFil.toFixed(2) + " TL";
+        document.getElementById("outAmort").innerText = costAmort.toFixed(2) + " TL";
+        
+        if(document.getElementById('hasDesign').checked) {
+            document.getElementById("resDesignLine").style.display = 'flex';
+            document.getElementById("outDesign").innerText = costDesign.toFixed(2) + " TL";
+        } else {
+            document.getElementById("resDesignLine").style.display = 'none';
+        }
+
+        document.getElementById("outNet").innerText = netTotal.toFixed(2) + " TL";
+        document.getElementById("outSale").innerText = salePrice.toFixed(2) + " TL";
+        document.getElementById("results").style.display = "block";
+    }
+
+    function resetInputs() {
+        ["elecKwh", "hours", "grams", "kgPrice", "amortValue", "profit", "designPrice"].forEach(id => document.getElementById(id).value = "");
+        document.getElementById("hasDesign").checked = false;
+        toggleDesign();
+        document.getElementById("results").style.display = "none";
+        document.getElementById("suggestedAmort").innerText = "Öneri: Bekleniyor...";
+    }
+</script>
+</body>
+</html>
